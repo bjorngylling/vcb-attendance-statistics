@@ -1,15 +1,14 @@
 import org.jsoup.HttpStatusException
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 
 def siteUrl = "http://arma3.swec.se/"
 def playerCountLimit = 16
+def attendancePercentLimit = 40
 def gameUrl = "game/data/"
 def serverUrl = "server/data/265?page="
 
-def playerDb = {}
+def playerDb = [:]
 def connection = Jsoup.connect(siteUrl)
 
 def gameIds = [];
@@ -35,16 +34,37 @@ for (i = 1; ; i++) {
         if (playerCount.toInteger() > playerCountLimit)
         {
             e = td.first().getElementsByTag("a").attr("href")
-            gameIds.add(e.substring(11)) // Remove /game/data and only the ID remains
+            gameIds.add(e.substring(gameUrl.size() + 1)) // Remove /game/data/ and only the ID remains
         }
     }
 }
 
 print "Number of games: " + gameIds.size() + ".\n"
 
-gameIds.each { id ->
-    Document doc = connection.url(siteUrl + gameUrl + id).get()
+gameIds.each { gameId ->
+    Document doc = connection.url(siteUrl + gameUrl + gameId).get()
     def players = doc.select("#player_data > table > tbody > tr")
+
+    players.subList(1, players.size()).each { playerRow ->
+        def style = playerRow.select("td:nth-child(4) > div").attr("style")
+        def playerName = playerRow.select("td:nth-child(1)").text()
+
+        def attendancePercentage = (style =~ /width: (.*)%;/)[0].last()
+        if (attendancePercentage.toInteger() > attendancePercentLimit)
+        {
+            def playerGames = playerDb.get(playerName)
+            if (playerGames == null)
+            {
+                playerGames = []
+            }
+            playerGames.add(gameId)
+            playerDb.put(playerName, playerGames)
+        }
+    }
+}
+
+playerDb.each { name, games ->
+    print "${name}: ${games.size()} (${(games.size() / gameIds.size() * 100).toInteger()}%) \n"
 }
 
 

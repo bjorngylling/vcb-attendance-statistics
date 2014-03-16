@@ -1,11 +1,14 @@
 class Main extends Configuration {
     def calcAttendance() {
-        def scraper = new SwecScraper()
-        def gameIds = scraper.scrapeGameIds()
+        def scraper = new SwecScraper("265")
+        def games = scraper.scrapeGames()
 
-        print "Number of games: " + gameIds.size() + ".\n"
+        print "Number of games: " + games.size() + ".\n"
 
-        printResults(scraper.scrapeGames(gameIds), gameIds.size())
+        def gameIds = games.collect { game ->
+            game.id
+        }
+        printResults(scraper.scrapePlayers(gameIds), games.size())
     }
 
     def printResults(playerDb, gameCount) {
